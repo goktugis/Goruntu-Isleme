@@ -1,1 +1,76 @@
-https://github.com/goktugis/G-r-nt-leme.git
+import cv2
+import numpy as np
+import tkinter as tk
+from tkinter import filedialog, messagebox
+import threading
+
+def top_takip(video_kaynagi):
+    cap = cv2.VideoCapture(video_kaynagi)
+
+    if not cap.isOpened():
+        messagebox.showerror("Hata", "Video açılamadı!")
+        return
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+        # Kırmızı renk aralığı
+        lower_red1 = np.array([0, 120, 70])
+        upper_red1 = np.array([10, 255, 255])
+        lower_red2 = np.array([170, 120, 70])
+        upper_red2 = np.array([180, 255, 255])
+
+        mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+        mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+        mask = mask1 + mask2
+
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if contours:
+            c = max(contours, key=cv2.contourArea)
+            ((x, y), radius) = cv2.minEnclosingCircle(c)
+
+            if radius > 10:
+                cv2.circle(frame, (int(x), int(y)), int(radius), (0, 255, 0), 2)
+                cv2.putText(frame, "Kirmizi Top", (int(x-40), int(y-10)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0,255,0), 2)
+
+        cv2.imshow("Kirmizi Top Takibi", frame)
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+def kameradan_baslat():
+    threading.Thread(target=top_takip, args=(0,)).start()
+
+def videodan_baslat():
+    video_yolu = filedialog.askopenfilename(
+        title="Video Sec",
+        filetypes=[("Video Dosyalari", "*.mp4 *.avi *.mov")]
+    )
+    if video_yolu:
+        threading.Thread(target=top_takip, args=(video_yolu,)).start()
+
+# UI
+root = tk.Tk()
+root.title("Kirmizi Top Takibi")
+root.geometry("300x200")
+root.resizable(False, False)
+
+lbl = tk.Label(root, text="Kirmizi Top Takibi", font=("Arial", 14))
+lbl.pack(pady=20)
+
+btn_kamera = tk.Button(root, text="📷 Kameradan Baslat", width=25, command=kameradan_baslat)
+btn_kamera.pack(pady=10)
+
+btn_video = tk.Button(root, text="🎬 Videodan Sec", width=25, command=videodan_baslat)
+btn_video.pack(pady=10)
+
+root.mainloop()
